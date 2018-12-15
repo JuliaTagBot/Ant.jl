@@ -5,9 +5,10 @@ del2z <delta.z@aliyun.com>
 =#
 module WordVec
 
+using ..Gnar: Polar, Model
 export nothing
 
-struct VecModel{T <: Union{Polor, AbstractFloats}} <: Model
+struct VecModel{T <: Union{Polar, AbstractFloat}} <: Model
     id2word::Vector{String}
     word2id::Dict{String, Integer}
     embedding::Matrix{T}
@@ -17,4 +18,4 @@ include("word2vec.jl")
 include("fasttext.jl")
 include("glove.jl")
 
-end
+end # module

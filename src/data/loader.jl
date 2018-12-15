@@ -1,6 +1,5 @@
-# Load data for multiple NLP tasks
-#
-# loader.jl
-#
-# del2z <delta.z@aliyun.com>
-#
+#!/usr/bin/env julia
+#=
+Common struct
+del2z <delta.z@aliyun.com>
+=#
