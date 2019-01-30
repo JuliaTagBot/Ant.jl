@@ -11,24 +11,15 @@ using Base.CoreLogging: Debug, Info, global_logger
 using Logging: ConsoleLogger
 global_logger(ConsoleLogger(stderr, Debug))
 
-UniEn = "\\u0000-\\uffff"
-UniCJK = "\\u0000-\\uffff"
-
-run(`pwd`)
-parsewiki("../../../Corpora/wiki/demo",
-          "temp.txt")
-#parsewiki("../../../../Resources/Corpus/zhwiki-latest-pages-articles6.xml-p6231444p6382070",
-#          "temp.txt")
-
 
 function parsewiki(fxml::String, ftxt::String)
     fin = open(fxml, "r")
     fout = open(ftxt, "w")
-    reTitle = Regex("<title>([$UniCJK]+)</title>")
+    reTitle = Regex("<title>(.+?)</title>")
     reNs = r"<ns>([\-\d]+)</ns>"
     reId = r"<id>(\d+)</id>"
-    reText1 = Regex("<text xml:space=\"preserve\">([$UniCJK]*)")
-    reText2 = Regex("([$UniCJK]*)</text>")
+    reText1 = Regex("<text xml:space=\"preserve\">(.*)")
+    reText2 = Regex("(.*?)</text>")
     InPage = IsKeep = InText = false
     title = id = content = ""
     for line in eachline(fin)
@@ -36,7 +27,7 @@ function parsewiki(fxml::String, ftxt::String)
         if line == "<page>"
             InPage = true
         elseif line == "</page>"
-            content = clean(content)
+            content = cleantext(content)
             length(content) > 0 || (IsKeep = false)
             (InPage && IsKeep) && write(fout, "<doc id=\"$id\" title=\"$title\">\n$content\n</doc>\n")
             InPage = false
@@ -65,7 +56,7 @@ function parsewiki(fxml::String, ftxt::String)
     close(fout)
 end
 
-function clean(str::AbstractString)
+function cleantext(str::AbstractString)
     # remove elements with bracelets
     str = replace(str, "&lt;math", "&lt;/math&gt;", " ")
     pair = search(str, "{{", "}}")
@@ -96,8 +87,8 @@ function clean(str::AbstractString)
         end
     end
 
-    str = replace(str, Regex("{{reflist[$UniCJK]*") => "")
-    str = replace(str, Regex("&lt;references /&gt;[$UniCJK]*") => "")
+    str = replace(str, Regex("{{reflist.*$") => "")
+    str = replace(str, Regex("&lt;references /&gt;.*$") => "")
     str = replace(str, "{\\| class", "\\|}", "")
     str = replace(str, "&lt;ref", "&lt;/ref&gt;", "")
     str = replace(str, "&lt;ref", "/&gt;", "")
@@ -109,14 +100,25 @@ function clean(str::AbstractString)
     str = replace(str, r"\n[,.:' ，。：]*\n", "\n")
     str = replace(str, r"^\n|\n$" => "")
     str = replace(str, r"'{2,}" => "")
-    str = replace(str, Regex("\\n\\*[$UniCJK]{0,50}\\n"), "\n")
+    str = replace(str, r"\n.{0,50}\n"), "\n")
     return str
 end
 
 
-function cleantitle()
+function clean1(str::AbstractString)
 end
 
+function clean2(str::AbstractString)
+end
+
+function clean3(str::AbstractString)
+end
+
+function clean4(str::AbstractString)
+end
+
+function clean5(str::AbstractString)
+end
 
 " Search paired patterns and return matched offsets "
 function search(s::AbstractString, left::AbstractString, right::AbstractString)
