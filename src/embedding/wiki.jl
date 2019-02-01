@@ -1,8 +1,5 @@
 #!/usr/bin/env julia
-#=
-#  Copyright by del2z <delta.z@aliyun.com>
-#  Licensed under LGPL-v3.0 (https://www.gnu.org/licenses/lgpl-3.0.en.html)
-=#
+# del2z <delta.z@aliyun.com>
 
 import Base: replace
 using DataStructures: Stack
@@ -57,7 +54,8 @@ function parsewiki(fxml::String, ftxt::String)
 end
 
 function cleantext(str::AbstractString)
-    # remove elements with bracelets
+    str = clean1(str)
+    #=
     str = replace(str, "&lt;math", "&lt;/math&gt;", " ")
     pair = search(str, "{{", "}}")
     bracefields = ["Infobox", "Taxobox", "Notability", "onesource", "More footnotes", "DEFAULTSORT"]
@@ -101,12 +99,24 @@ function cleantext(str::AbstractString)
     str = replace(str, r"^\n|\n$" => "")
     str = replace(str, r"'{2,}" => "")
     str = replace(str, r"\n.{0,50}\n"), "\n")
+    =#
     return str
 end
 
 
 function clean1(str::AbstractString)
+    str = replace(str, r"'''''(.*?)'''''" => s"\1")
+    str = replace(str, r"'''(.*?)'''" => s"\1")
+    str = replace(str, r"''(.*?)''" => s"\1")
+    str = replace(str, r"======(.*?)======" => "")
+    str = replace(str, r"=====(.*?)=====" => "")
+    str = replace(str, r"====(.*?)====" => "")
+    str = replace(str, r"===(.*?)===" => "")
+    str = replace(str, r"==(.*?)==" => "")
+    str = replace(str, r"----" => "")
+    return str
 end
+
 
 function clean2(str::AbstractString)
 end

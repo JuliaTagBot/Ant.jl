@@ -1,8 +1,6 @@
 #!/usr/bin/env julia
-#=
-Word vector models
-del2z <delta.z@aliyun.com>
-=#
+# del2z <delta.z@aliyun.com>
+
 module Embedding
 
 using ..Gnar: Polar, Model
