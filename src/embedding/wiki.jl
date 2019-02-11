@@ -1,23 +1,22 @@
 #!/usr/bin/env julia
-#=
-Package Gnar
-del2z <delta.z@aliyun.com>
-=#
+# del2z <delta.z@aliyun.com>
 
 import Base: replace
 using DataStructures: Stack
 
-UniEn = "\\u0000-\\uffff"
-UniCJK = "\\u0000-\\uffff"
+using Base.CoreLogging: Debug, Info, global_logger
+using Logging: ConsoleLogger
+global_logger(ConsoleLogger(stderr, Debug))
+
 
 function parsewiki(fxml::String, ftxt::String)
     fin = open(fxml, "r")
     fout = open(ftxt, "w")
-    reTitle = Regex("<title>([$UniCJK]+)</title>")
+    reTitle = Regex("<title>(.+?)</title>")
     reNs = r"<ns>([\-\d]+)</ns>"
     reId = r"<id>(\d+)</id>"
-    reText1 = Regex("<text xml:space=\"preserve\">([$UniCJK]*)")
-    reText2 = Regex("([$UniCJK]*)</text>")
+    reText1 = Regex("<text xml:space=\"preserve\">(.*)")
+    reText2 = Regex("(.*?)</text>")
     InPage = IsKeep = InText = false
     title = id = content = ""
     for line in eachline(fin)
@@ -25,7 +24,7 @@ function parsewiki(fxml::String, ftxt::String)
         if line == "<page>"
             InPage = true
         elseif line == "</page>"
-            content = clean(content)
+            content = cleantext(content)
             length(content) > 0 || (IsKeep = false)
             (InPage && IsKeep) && write(fout, "<doc id=\"$id\" title=\"$title\">\n$content\n</doc>\n")
             InPage = false
@@ -35,12 +34,11 @@ function parsewiki(fxml::String, ftxt::String)
         end
         if title == "" && match(reTitle, line) != nothing
             title = match(reTitle, line).captures[1]
-            println("title: ", match(reTitle, line).captures[1])
         elseif match(reNs, line) != nothing
             IsKeep = match(reNs, line).captures[1] == "0"
         elseif id == "" && match(reId, line) != nothing
             id = match(reId, line).captures[1]
-            println("id: ", match(reId, line).captures[1])
+            @debug (id, title)
         elseif match(reText1, line) != nothing && match(reText2, line) === nothing
             InText = true
             content = match(reText1, line).captures[1] * "\n"
@@ -55,8 +53,9 @@ function parsewiki(fxml::String, ftxt::String)
     close(fout)
 end
 
-function clean(str::AbstractString)
-    # remove elements with bracelets
+function cleantext(str::AbstractString)
+    str = clean1(str)
+    #=
     str = replace(str, "&lt;math", "&lt;/math&gt;", " ")
     pair = search(str, "{{", "}}")
     bracefields = ["Infobox", "Taxobox", "Notability", "onesource", "More footnotes", "DEFAULTSORT"]
@@ -86,23 +85,50 @@ function clean(str::AbstractString)
         end
     end
 
-    str = replace(str, "&lt;ref&gt;", "&lt;/ref&gt;", "")
-    #=
+    str = replace(str, Regex("{{reflist.*$") => "")
+    str = replace(str, Regex("&lt;references /&gt;.*$") => "")
+    str = replace(str, "{\\| class", "\\|}", "")
+    str = replace(str, "&lt;ref", "&lt;/ref&gt;", "")
     str = replace(str, "&lt;ref", "/&gt;", "")
     str = replace(str, "&lt;!--", "--&gt;", "")
-    str = replace(str, "{\\| class", "\\|}", "")
-    str = replace(str, Regex("{{reflist}}[$UniCJK]*") => "")
-    str = replace(str, Regex("&lt;references /&gt;[$UniCJK]*") => "")
+
+    str = replace(str, r"\[\[([^\|]+)\]\]" => s"\1")
     str = replace(str, r"\n==[^\n]+==\n" => "")
     str = replace(str, r"\n===[^\n]+===\n" => "")
     str = replace(str, r"\n[,.:' ，。：]*\n", "\n")
     str = replace(str, r"^\n|\n$" => "")
     str = replace(str, r"'{2,}" => "")
-    str = replace(str, Regex("\\n\\*[$UniCJK]{0,50}\\n"), "\n")
+    str = replace(str, r"\n.{0,50}\n"), "\n")
     =#
     return str
 end
 
+
+function clean1(str::AbstractString)
+    str = replace(str, r"'''''(.*?)'''''" => s"\1")
+    str = replace(str, r"'''(.*?)'''" => s"\1")
+    str = replace(str, r"''(.*?)''" => s"\1")
+    str = replace(str, r"======(.*?)======" => "")
+    str = replace(str, r"=====(.*?)=====" => "")
+    str = replace(str, r"====(.*?)====" => "")
+    str = replace(str, r"===(.*?)===" => "")
+    str = replace(str, r"==(.*?)==" => "")
+    str = replace(str, r"----" => "")
+    return str
+end
+
+
+function clean2(str::AbstractString)
+end
+
+function clean3(str::AbstractString)
+end
+
+function clean4(str::AbstractString)
+end
+
+function clean5(str::AbstractString)
+end
 
 " Search paired patterns and return matched offsets "
 function search(s::AbstractString, left::AbstractString, right::AbstractString)
@@ -144,7 +170,7 @@ function Base.replace(s::AbstractString, left::AbstractString, right::AbstractSt
     rightlen = length(right) - count(c -> c == '\\', right)
     rlen = length(r)
     while !isempty(pair)
-        leftindex = collect(keys(pair))[1]
+        leftindex = maximum(keys(pair))
         rightindex = pop!(pair, leftindex) + rightlen - 1
         s = replace(s, leftindex, rightindex, r)
         update!(pair, leftindex, rightindex, rlen = rlen)
@@ -156,24 +182,19 @@ end
 " Update paired dict after replacement "
 function update!(pair::Dict{Int, Int}, leftindex::Int, rightindex::Int; rlen::Int = 0)
     plen = rightindex - leftindex + 1
-    for (k, v) in collect(pair)
-        if k < leftindex && v < leftindex
+    for (i, j) in sort(collect(pair))
+        if i < leftindex && j < leftindex
             continue
-        elseif k < leftindex && v > rightindex
-            pair[k] = v - plen + rlen
-        elseif k >= leftindex && v <= rightindex
-            delete!(pair, k)
-        elseif k > rightindex && v > rightindex
-            delete!(pair, k)
-            pair[k - plen + rlen] = v - plen + rlen
+        elseif i < leftindex && j > rightindex
+            pair[i] = j - plen + rlen
+        elseif i >= leftindex && j <= rightindex
+            delete!(pair, i)
+        elseif i > rightindex && j > rightindex
+            delete!(pair, i)
+            pair[i - plen + rlen] = j - plen + rlen
         else
-            println("Mismatched paired pattern ($k, $v)")
+            println("Mismatched paired pattern ($i, $j)")
         end
     end
 end
 
-run(`pwd`)
-parsewiki("../../../../../Resources/Corpus/demo",
-          "temp.txt")
-#parsewiki("../../../../Resources/Corpus/zhwiki-latest-pages-articles6.xml-p6231444p6382070",
-#          "temp.txt")
