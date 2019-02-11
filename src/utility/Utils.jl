@@ -5,7 +5,7 @@ del2z <delta.z@aliyun.com>
 =#
 module Utils
 
-using ..Gnar: Polar, Model
+using ..Ant: Polar, Model
 export nothing
 
 end # module

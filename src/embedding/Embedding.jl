@@ -3,7 +3,7 @@
 
 module Embedding
 
-using ..Gnar: Polar, Model
+using ..Ant: Polar, Model
 export nothing
 
 struct WordRep{T <: Union{Polar, AbstractFloat}} <: Model
