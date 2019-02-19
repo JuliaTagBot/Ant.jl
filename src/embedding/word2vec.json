@@ -1,13 +1,13 @@
 {
-    "method" : "cbow",
-    "io" : {
-        "output_h5" : "cbow.h5",
-        "output_flat" : "cbow.txt"
+    "method": "cbow",
+    "io": {
+        "output_h5": "cbow.h5",
+        "output_flat": "cbow.txt"
     },
-    "model" : {
-        "window" : 4,
-        "epochs" : 10,
-        "embed_size" : 50,
-        "batch_size" : 128
+    "model": {
+        "window": 4,
+        "epochs": 11,
+        "embed_size": 50,
+        "batch_size": 128
     }
 }
