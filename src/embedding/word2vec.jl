@@ -3,7 +3,7 @@
 
 #module Word2Vec
 
-using Flux
+using Flux: glorot_normal, ADAM, OneHotMatrix, OneHotVector
 using JSON
 using DataStructures
 
@@ -20,27 +20,49 @@ word2idx = OrderedDict(zip(idx2word, 1:vocab_size))
 @info length(idx2word), typeof(idx2word)
 @info length(word2idx), word2idx["<NIL>"], word2idx["<UNK>"]
 
-# negative sampling
+## model graph
 embed_size = config["model"]["embed_size"]
-W_emb = param(rand(vocab_size, embed_size))
-W_out = param(rand(embed_size, vocab_size))
-b_out = param(rand(vocab_size))
+W_emb = param(glorot_normal(embed_size, vocab_size))
+W_out = param(glorot_normal(vocab_size, embed_size))
+b_out = param(zeros(vocab_size))
 
+function dataset end
 function model end
+function loss end
 
+neg_scale = config["model"]["neg_scale"]
 if config["method"] == "cbow"
-    model(x) = nothing
+    dataset(corpus) = begin
+    end
+
+    model(x::OneHotMatrix) = begin
+        W_out * sum(W_emb * x, dims = 2) + b_out
+    end
+
+    loss(x::OneHotMatrix, y::OneHotVector) = begin
+        model(x)
+    end
 else
-    model(x) = nothing
+    dataset(corpus) = begin
+    end
+
+    model(x::OneHotVector) = begin
+        W_out * W_emb * x + b_out
+    end
+
+    loss(x::OneHotVector, y::OneHotMatrix) = begin
+    end
 end
 
-function loss()
-end
+## training
+Xs, Ys = dataset(corpus)
+opt = ADAM(0.01)
+tx, ty = (Xs[5], Ys[5])
+evalcb = () -> @show loss(tx, ty)
 
-function train!()
-end
+Flux.train!(loss, params(W_emb, W_out, b_out), zip(Xs, Ys), opt,
+            cb = throttle(evalcb, 30))
 
-function test()
-end
+## testing
 
 #end
