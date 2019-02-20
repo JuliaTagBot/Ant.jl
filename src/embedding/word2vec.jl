@@ -30,9 +30,21 @@ function dataset end
 function model end
 function loss end
 
+window = config["model"]["window"]
 neg_scale = config["model"]["neg_scale"]
 if config["method"] == "cbow"
-    dataset(corpus) = begin
+    dataset(corpus::Vector{Vector{String}}) = begin
+        Xs = Vector{OneHotMatrix}()
+        Ys = Vector{OneHotVector}()
+        for seq in corpus
+            size(seq, 1) >= window || continue
+            for k in 1:(size(seq, 1) - window + 1)
+                tmp = seq[k:(k + window)]
+                push!(Xs, nothing)
+                push!(Ys, nothing)
+            end
+        end
+        Xs, Ys
     end
 
     model(x::OneHotMatrix) = begin
@@ -43,7 +55,10 @@ if config["method"] == "cbow"
         model(x)
     end
 else
-    dataset(corpus) = begin
+    dataset(corpus::Vector{Vector{String}}) = begin
+        Xs = Vector{OneHotMatrix}()
+        Ys = Vector{OneHotVector}()
+        Xs, Ys
     end
 
     model(x::OneHotVector) = begin
