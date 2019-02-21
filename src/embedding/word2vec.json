@@ -5,8 +5,8 @@
         "output_flat": "cbow.txt"
     },
     "model": {
-        "window": 4,
-        "epochs": 11,
+        "window": 5,
+        "epochs": 20,
         "neg_scale": 5,
         "embed_size": 50,
         "batch_size": 128
