@@ -2,6 +2,7 @@
 # del2z <delta.z@aliyun.com>
 
 using StatsBase
+using DataStructures
 
 " Load raw corpus in `Vector{String}` "
 function loaddata(fname::AbstractString)
@@ -29,6 +30,8 @@ function genvocab(corpus::Vector{Vector{String}}, mincount::Integer = 0)
     for k in 1:length(corpus)
         addcounts!(wordcount, corpus[k])
     end
-    (mincount <= 0) ? collect(keys(wordcount)) :
-    filter(w -> wordcount[w] >= mincount, collect(keys(wordcount)))
+    totalcount = (mincount <= 0) ? sum(values(wordcount)) :
+    sum(values(filter!(kv -> kv.second >= mincount, wordcount)))
+    wordfreq = OrderedDict(map(kv -> (kv.first, kv.second / totalcount), collect(wordcount)))
+    wordfreq
 end

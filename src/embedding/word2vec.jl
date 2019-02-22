@@ -14,8 +14,9 @@ const config = JSON.parsefile(joinpath(@__DIR__, "word2vec.json"))
 include("prepro.jl")
 
 corpus = segment!(loaddata("corpus.txt"))
-index2word = genvocab(corpus, 1)
-pushfirst!(index2word, "<UNK>")
+wordfreq = genvocab(corpus, 1)
+
+index2word = ["<UNK>"; collect(keys(wordfreq))]
 vocabsize = length(index2word)
 word2index = OrderedDict(zip(index2word, 1:vocabsize))
 
@@ -40,6 +41,7 @@ if config["method"] == "cbow"
             size(seq, 1) >= window || continue
             for k in 1:(size(seq, 1) - window + 1)
                 chunk = seq[k:(k - 1 + window)]
+                in(chunk[(window + 1) ÷ 2], index2word) || continue
                 push!(Xs, onehotbatch([chunk[i] for i in filter(x -> x != (window + 1) ÷ 2, 1:window)],
                                       index2word, "<UNK>"))
                 push!(Ys, onehot(chunk[(window + 1) ÷ 2], index2word, "<UNK>"))
@@ -67,6 +69,7 @@ else
             size(seq, 1) >= window || continue
             for k in 1:(size(seq, 1) - window + 1)
                 chunk = seq[k:(k - 1 + window)]
+                in(chunk[(window + 1) ÷ 2], index2word) || continue
                 push!(Xs, onehot(chunk[(window + 1) ÷ 2], index2word, "<UNK>"))
                 push!(Ys, onehotbatch([chunk[i] for i in filter(x -> x != (window + 1) ÷ 2, 1:window)],
                                       index2word, "<UNK>"))
