@@ -3,58 +3,62 @@
 
 import Base: replace
 using DataStructures: Stack
+using LightXML
 
-using Base.CoreLogging: Debug, Info, global_logger
-using Logging: ConsoleLogger
-global_logger(ConsoleLogger(stderr, Debug))
+" Parse wikipedia data dumped by wikimedia "
+function parsewiki(xmlfile::AbstractString, txtfile::AbstractString)
+    fin = open(xmlfile, "r")
+    fout = open(txtfile, "w")
 
-
-function parsewiki(fxml::String, ftxt::String)
-    fin = open(fxml, "r")
-    fout = open(ftxt, "w")
-    reTitle = Regex("<title>(.+?)</title>")
-    reNs = r"<ns>([\-\d]+)</ns>"
-    reId = r"<id>(\d+)</id>"
-    reText1 = Regex("<text xml:space=\"preserve\">(.*)")
-    reText2 = Regex("(.*?)</text>")
-    InPage = IsKeep = InText = false
-    title = id = content = ""
+    page = ""
+    numline = 0
     for line in eachline(fin)
         line = strip(line)
+        numline += 1
         if line == "<page>"
-            InPage = true
+            page = line
         elseif line == "</page>"
-            content = cleantext(content)
-            length(content) > 0 || (IsKeep = false)
-            (InPage && IsKeep) && write(fout, "<doc id=\"$id\" title=\"$title\">\n$content\n</doc>\n")
-            InPage = false
-            title = ""
-            id = ""
-            content = ""
-        end
-        if title == "" && match(reTitle, line) != nothing
-            title = match(reTitle, line).captures[1]
-        elseif match(reNs, line) != nothing
-            IsKeep = match(reNs, line).captures[1] == "0"
-        elseif id == "" && match(reId, line) != nothing
-            id = match(reId, line).captures[1]
-            @debug (id, title)
-        elseif match(reText1, line) != nothing && match(reText2, line) === nothing
-            InText = true
-            content = match(reText1, line).captures[1] * "\n"
-        elseif match(reText2, line) != nothing && match(reText1, line) === nothing
-            content *= match(reText2, line).captures[1]
-            InText = false
-        elseif InText
-            content *= line * "\n"
+            page *= "\n" * line
+            pageinfo = parsepage(page, numline)
+            write(fout, "<doc id=\"$(pageinfo[:id])\" title=\"$(pageinfo[:title])\">\n",
+                  "$(cleantext(pageinfo[:content]))\n</doc>\n")
+        else
+            page *= "\n" * line
         end
     end
     close(fin)
     close(fout)
 end
 
-function cleantext(str::AbstractString)
-    str = clean1(str)
+" Parse one page of wikipedia "
+function parsepage(page::AbstractString, numline::Int)
+    pageinfo = Dict{Symbol, Any}()
+    try
+        xmldoc = parse_string(page)
+        xroot = root(xmldoc)
+        pageinfo[:ns] = content(xroot["ns"][1])
+        pageinfo[:id] = content(xroot["id"][1])
+        pageinfo[:title] = content(xroot["title"][1])
+        if find_element(xroot, "revision") != nothing
+            pageinfo[:content] = content(xroot["revision"][1]["text"][1])
+        else
+            pageinfo[:content] = content(xroot["text"][1])
+        end
+        free(xmldoc)
+    catch e
+        throw(e)
+        println("Encounter errors before line $numline.")
+    end
+    pageinfo
+end
+
+" Clean unnecessary formats of contents "
+function cleantext(text::AbstractString)
+    text = clean1(text)
+    text = clean2(text)
+    text = clean3(text)
+    text = clean4(text)
+    text = clean5(text)
     #=
     str = replace(str, "&lt;math", "&lt;/math&gt;", " ")
     pair = search(str, "{{", "}}")
@@ -100,35 +104,58 @@ function cleantext(str::AbstractString)
     str = replace(str, r"'{2,}" => "")
     str = replace(str, r"\n.{0,50}\n"), "\n")
     =#
-    return str
+    return text
 end
 
 
-function clean1(str::AbstractString)
-    str = replace(str, r"'''''(.*?)'''''" => s"\1")
-    str = replace(str, r"'''(.*?)'''" => s"\1")
-    str = replace(str, r"''(.*?)''" => s"\1")
-    str = replace(str, r"======(.*?)======" => "")
-    str = replace(str, r"=====(.*?)=====" => "")
-    str = replace(str, r"====(.*?)====" => "")
-    str = replace(str, r"===(.*?)===" => "")
-    str = replace(str, r"==(.*?)==" => "")
-    str = replace(str, r"----" => "")
-    return str
+" Clean headings of page "
+function clean1(text::AbstractString)
+    text = replace(text, r"'''''(.*?)'''''" => s"\1")
+    text = replace(text, r"'''(.*?)'''" => s"\1")
+    text = replace(text, r"''(.*?)''" => s"\1")
+    text = replace(text, r"======(.*?)======" => "")
+    text = replace(text, r"=====(.*?)=====" => "")
+    text = replace(text, r"====(.*?)====" => "")
+    text = replace(text, r"===(.*?)===" => "")
+    text = replace(text, r"==(.*?)==" => "")
+    text = replace(text, r"----" => "")
+    return text
 end
 
 
-function clean2(str::AbstractString)
+" Clean html marks "
+function clean2(text::AbstractString)
+    text = replace(text, r"<math>(.*?)</math>"s => "")
+    text = replace(text, r"<ref[ >](.*?)</ref>"s => "")
+    text = replace(text, r"<!--(.*?)-->"s => "")
+    return text
 end
 
-function clean3(str::AbstractString)
+
+" Clean extra boxes "
+function clean3(text::AbstractString)
+    text = replace(text, r"^{{Taxobox(.*?)^}}"ms => "")
+    text = replace(text, r"^{{Infobox(.*?)^}}"ms => "")
+    text = replace(text, r"^{\| class(.*?)^\|}"ms => "")
+    text = replace(text, r"{{reflist[}|](.*?)$"s => "")
+    return text
 end
 
-function clean4(str::AbstractString)
+
+" Clean external links "
+function clean4(text::AbstractString)
+    return text
 end
 
-function clean5(str::AbstractString)
+
+" Clean other formats "
+function clean5(text::AbstractString)
+    text = replace(text, r"^\n+|\n+$" => "")
+    text = replace(text, r"\n[,.:' ，。：]*\n", "\n")
+    text = replace(text, r"\n+" => "\n")
+    return text
 end
+
 
 " Search paired patterns and return matched offsets "
 function search(s::AbstractString, left::AbstractString, right::AbstractString)

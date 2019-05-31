@@ -4,7 +4,7 @@
 include("wiki.jl")
 
 run(`pwd`)
-parsewiki("../../../../../Resources/Corpus/demo",
+parsewiki("/Users/del2z/Workspace/Corpora/wiki/demo",
           "temp.txt")
 #parsewiki("../../../../Resources/Corpus/zhwiki-latest-pages-articles6.xml-p6231444p6382070",
 #          "temp.txt")
