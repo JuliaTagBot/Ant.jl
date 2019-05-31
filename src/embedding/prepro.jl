@@ -4,7 +4,7 @@
 using StatsBase
 using DataStructures
 
-" Load raw corpus in `Vector{String}` "
+" Load raw corpus into `Vector{String}` "
 function loaddata(fname::AbstractString)
     corpus = Vector{String}()
     open(fname, "r") do fin
@@ -31,7 +31,7 @@ function genvocab(corpus::Vector{Vector{String}}, mincount::Integer = 0)
         addcounts!(wordcount, corpus[k])
     end
     totalcount = (mincount <= 0) ? sum(values(wordcount)) :
-    sum(values(filter!(kv -> kv.second >= mincount, wordcount)))
+                 sum(values(filter!(kv -> kv.second >= mincount, wordcount)))
     wordfreq = OrderedDict(map(kv -> (kv.first, kv.second / totalcount), collect(wordcount)))
     wordfreq
 end

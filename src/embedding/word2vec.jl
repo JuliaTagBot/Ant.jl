@@ -16,13 +16,13 @@ include("prepro.jl")
 corpus = segment!(loaddata("corpus.txt"))
 wordfreq = genvocab(corpus, 1)
 
-index2word = ["<UNK>"; collect(keys(wordfreq))]
+index2word = ["<UNK>"; "</s>"; collect(keys(wordfreq))]
 vocabsize = length(index2word)
 word2index = OrderedDict(zip(index2word, 1:vocabsize))
 
 ## model graph
 embedsize = config["model"]["embed_size"]
-W̃_emb = param(glorot_normal(embedsize, vocabsize))
+W̃_in = param(glorot_normal(embedsize, vocabsize))
 W̃_out = param(glorot_normal(vocabsize, embedsize))
 b̃_out = param(zeros(vocabsize))
 
@@ -51,7 +51,7 @@ if config["method"] == "cbow"
     end
 
     model(x::OneHotMatrix) = begin
-        W̃_out * sum(W̃_emb * x, dims = 2) + b̃_out
+        W̃_out * sum(W̃_in * x, dims = 2) + b̃_out
     end
 
     loss(x::OneHotMatrix, y::OneHotVector) = begin
@@ -79,7 +79,7 @@ else
     end
 
     model(x::OneHotVector) = begin
-        W̃_out * W̃_emb * x + b̃_out
+        W̃_out * W̃_in * x + b̃_out
     end
 
     loss(x::OneHotVector, y::OneHotMatrix) = begin
@@ -97,7 +97,7 @@ Xs, Ys = dataset(corpus)
 opt = ADAM(0.002)
 
 for ep in 1:config["model"]["epochs"]
-    Flux.train!(loss, params(W̃_emb, W̃_out, b̃_out), zip(Xs, Ys), opt)
+    Flux.train!(loss, params(W̃_in, W̃_out, b̃_out), zip(Xs, Ys), opt)
     @info sum(map(p -> loss(p...), zip(Xs, Ys)))
 end
 
